@@ -1,5 +1,5 @@
 from typing import TypedDict , Annotated
-from langchain_core.messages import BaseMessage , HumanMessage
+from langchain_core.messages import BaseMessage,HumanMessage
 from langgraph.graph import add_messages
 from reflection_agent.chains import generation_chain,reflection_chain
 from langgraph.graph import StateGraph,END
@@ -17,16 +17,17 @@ def generate_node(state:MessageState):
         }
     )]}
 
-def reflection_node(state:MessageState):
-    return  {"messages":[reflection_chain.invoke(
-        {
-            "messages":state["messages"]
-        }
-    )]}
+def reflection_node(state: MessageState):
+    tweet = state["messages"][-1].content
 
+    res = reflection_chain.invoke({
+        "messages": [HumanMessage(content=tweet)]
+    })
+
+    return {"messages": [HumanMessage(content=res.content)]}
 
 def should_continue(state:MessageState):
-    if len(state["messages"])>2:
+    if len(state["messages"])>6:
         return END 
     return REFLECT
 
@@ -40,6 +41,8 @@ builder.add_conditional_edges(GENERATE,should_continue,path_map={
     END:END,
     REFLECT:REFLECT
 })
+
+builder.add_edge(REFLECT, GENERATE)
 
 graph = builder.compile()
 if __name__=="__main__": 
